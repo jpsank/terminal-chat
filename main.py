@@ -1,22 +1,27 @@
-import subprocess
 import os
 import argparse
-import shlex
+
+
+def get_ip():
+    process = os.popen("""ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'""")
+    ip = process.read().strip().replace('\n',"")
+    process.close()
+    return ip
 
 
 class Chat:
     def __init__(self,port):
         self.port = port
-        self.ip = os.popen("""ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'""").read().strip()
+        self.ip = get_ip()
 
     def start(self):
-        os.system("while true; do nc -l {}; done".format(self.port))
+        os.system("while true; do nc -l {} -k; done".format(self.port))
 
 
 def connect(target,port):
-    ip = os.popen("""ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'""").read()
+    ip = get_ip()
     while True:
-        m = "{}>{}".format(ip,input(""))
+        m = "{}>{}".format(ip,input("you>"))
         os.system('echo "{}" | nc {} {}'.format(m,target,port))
 
 
