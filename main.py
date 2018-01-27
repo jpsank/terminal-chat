@@ -1,5 +1,6 @@
 import os
 import argparse
+import threading
 
 
 def get_ip():
@@ -15,17 +16,20 @@ class Chat:
         self.ip = get_ip()
 
     def start(self):
-        os.system("""tcpserver -v -RHl0 127.0.0.1 {} sh -c "echo 'start'""".format(self.port))
+        os.system("while true; do nc -l {} -k; done".format(self.port))
 
 
 def connect(target,port):
-    os.system('telnet {} {}'.format(target,port))
+    ip = get_ip()
+    while True:
+        # m = "{}>{}".format(ip, input("you>"))
+        os.system('''nc {} {}'''.format(target, port))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', help='target to listen', type=str, dest="target")
-    parser.add_argument('-p', help='port to listen', type=int, default=2023, dest="port")
+    parser.add_argument('-p', help='port to listen', type=int, default=55555, dest="port")
     parser.add_argument('-l', '--listen', nargs='?', help='listen to [host]:[port] for incoming connections',
                         default=False, const=True)
     args = parser.parse_args()
