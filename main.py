@@ -1,5 +1,8 @@
 import os
 import argparse
+import socket
+import select
+import sys
 import threading
 
 
@@ -10,20 +13,88 @@ def get_ip():
     return ip
 
 
-class Chat:
-    def __init__(self,port):
+class Server:
+    def __init__(self,port=55555):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        self.clients = []
+
+        self.host = get_ip()
         self.port = port
-        self.ip = get_ip()
+
+    def clientthread(self, conn, addr):
+        conn.send(b'Welcome to this chatroom!')
+        while True:
+            try:
+                message = conn.recv(2048).decode()
+                if message:
+                    print(addr[0] + "> " + message)
+
+                    message_to_send = addr[0] + "> " + message
+                    self.broadcast(message_to_send, conn)
+
+                else:
+                    self.remove(conn)
+
+            except:
+                continue
+
+    def broadcast(self, message, connection):
+        for c in self.clients:
+            if c != connection:
+                try:
+                    c.send(message.encode())
+                except:
+                    c.close()
+                    self.remove(c)
+
+    def remove(self,connection):
+        if connection in self.clients:
+            self.clients.remove(connection)
 
     def start(self):
-        os.system("while true; do nc -l {} -k; done".format(self.port))
+        self.s.bind((self.host, self.port))
+        self.s.listen(100)
+        while True:
+            conn, addr = self.s.accept()
+            self.clients.append(conn)
+            print(addr[0] + " connected.")
+            threading.Thread(target=self.clientthread,args=(conn, addr)).start()
+
+        conn.close()
+        self.s.close()
 
 
-def connect(target,port):
-    ip = get_ip()
-    while True:
-        # m = "{}>{}".format(ip, input("you>"))
-        os.system('''nc {} {}'''.format(target, port))
+class Client:
+    def __init__(self, target, port=55555):
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.target = target
+        self.port = port
+
+        self.s.connect((self.target, self.port))
+        closed = False
+        while not closed:
+            sockets_list = [sys.stdin, self.s]
+
+            read_sockets, write_socket, error_socket = select.select(sockets_list, [], [])
+
+            for socks in read_sockets:
+                if socks == self.s:
+                    message = socks.recv(2048)
+                    if message:
+                        print(message.decode())
+                    else:
+                        print("Connection closed.")
+                        closed = True
+                        break
+                else:
+                    message = sys.stdin.readline()
+                    self.s.send(message.encode())
+                    sys.stdout.write("You>")
+                    sys.stdout.write(message)
+                    sys.stdout.flush()
+        self.s.close()
 
 
 if __name__ == '__main__':
@@ -35,10 +106,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.listen:
-        chat = Chat(args.port)
-        print("CHAT: ip {}, port {}".format(chat.ip,chat.port))
-        chat.start()
+        server = Server(args.port)
+        print("Chat initiated with IP {} on port {}".format(server.host,server.port))
+        server.start()
     else:
-        connect(args.target,args.port)
+        client = Client(args.target,args.port)
+
+
 
 
