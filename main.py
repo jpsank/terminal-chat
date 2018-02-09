@@ -6,13 +6,6 @@ import sys
 import threading
 
 
-def get_ip():
-    process = os.popen("""ifconfig | grep "inet " | grep -Fv 127.0.0.1 | awk '{print $2}'""")
-    ip = process.read().strip().replace('\n',"")
-    process.close()
-    return ip
-
-
 class Server:
     def __init__(self,port=55555):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,9 +13,21 @@ class Server:
 
         self.clients = []
 
-        self.name = socket.gethostname()
-        self.host = get_ip()
+        self.host = socket.gethostname()
         self.port = port
+
+        self.s.bind((self.host, self.port))
+        self.ip = self.s.getsockname()[0]
+
+        self.s.listen(100)
+        while True:
+            conn, addr = self.s.accept()
+            self.clients.append(conn)
+            print(addr[0] + " connected.")
+            threading.Thread(target=self.clientthread, args=(conn, addr)).start()
+
+        conn.close()
+        self.s.close()
 
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
@@ -30,8 +35,8 @@ class Server:
             try:
                 message = conn.recv(2048).decode()
                 if message:
-                    print(message)
-                    message_to_send = message
+                    message_to_send = "{}>{}".format(addr[0],message)
+                    print(message_to_send)
                     self.broadcast(message_to_send, conn)
 
                 else:
@@ -53,28 +58,18 @@ class Server:
         if connection in self.clients:
             self.clients.remove(connection)
 
-    def start(self):
-        self.s.bind((self.host, self.port))
-        self.s.listen(100)
-        while True:
-            conn, addr = self.s.accept()
-            self.clients.append(conn)
-            print(addr[0] + " connected.")
-            threading.Thread(target=self.clientthread,args=(conn, addr)).start()
-
-        conn.close()
-        self.s.close()
-
 
 class Client:
     def __init__(self, target, port=55555):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        self.name = socket.gethostname()
+        self.host = socket.gethostname()
         self.target = target
         self.port = port
 
         self.s.connect((self.target, self.port))
+        self.ip = self.s.getsockname()[0]
+
         closed = False
         while not closed:
             sockets_list = [sys.stdin, self.s]
@@ -92,7 +87,7 @@ class Client:
                         break
                 else:
                     message = sys.stdin.readline()
-                    self.s.send("{}>{}".format(self.name,message).encode())
+                    self.s.send(message.encode())
                     sys.stdout.write("You>")
                     sys.stdout.write(message)
                     sys.stdout.flush()
