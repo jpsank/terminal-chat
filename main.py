@@ -20,6 +20,7 @@ class Server:
 
         self.clients = []
 
+        self.name = socket.gethostname()
         self.host = get_ip()
         self.port = port
 
@@ -29,9 +30,8 @@ class Server:
             try:
                 message = conn.recv(2048).decode()
                 if message:
-                    print(addr[0] + "> " + message)
-
-                    message_to_send = addr[0] + "> " + message
+                    print(message)
+                    message_to_send = message
                     self.broadcast(message_to_send, conn)
 
                 else:
@@ -69,6 +69,8 @@ class Server:
 class Client:
     def __init__(self, target, port=55555):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.name = socket.gethostname()
         self.target = target
         self.port = port
 
@@ -90,7 +92,7 @@ class Client:
                         break
                 else:
                     message = sys.stdin.readline()
-                    self.s.send(message.encode())
+                    self.s.send("{}>{}".format(self.name,message).encode())
                     sys.stdout.write("You>")
                     sys.stdout.write(message)
                     sys.stdout.flush()
@@ -99,8 +101,8 @@ class Client:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-t', help='target to listen', type=str, dest="target")
-    parser.add_argument('-p', help='port to listen', type=int, default=55555, dest="port")
+    parser.add_argument('-t', help='target IP to connect to', type=str, dest="target")
+    parser.add_argument('-p', help='port to listen (default 55555)', type=int, default=55555, dest="port")
     parser.add_argument('-l', '--listen', nargs='?', help='listen to [host]:[port] for incoming connections',
                         default=False, const=True)
     args = parser.parse_args()
