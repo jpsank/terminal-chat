@@ -19,16 +19,6 @@ class Server:
         self.s.bind((self.host, self.port))
         self.ip = self.s.getsockname()[0]
 
-        self.s.listen(100)
-        while True:
-            conn, addr = self.s.accept()
-            self.clients.append(conn)
-            print(addr[0] + " connected.")
-            threading.Thread(target=self.clientthread, args=(conn, addr)).start()
-
-        conn.close()
-        self.s.close()
-
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
         while True:
@@ -57,6 +47,17 @@ class Server:
     def remove(self,connection):
         if connection in self.clients:
             self.clients.remove(connection)
+
+    def start(self):
+        self.s.listen(100)
+        while True:
+            conn, addr = self.s.accept()
+            self.clients.append(conn)
+            print(addr[0] + " connected.")
+            threading.Thread(target=self.clientthread, args=(conn, addr)).start()
+
+        conn.close()
+        self.s.close()
 
 
 class Client:
@@ -104,7 +105,7 @@ if __name__ == '__main__':
 
     if args.listen:
         server = Server(args.port)
-        print("Chat initiated with IP {} on port {}".format(server.host,server.port))
+        print("Chat initiated with IP {} on port {}".format(server.ip,server.port))
         server.start()
     else:
         client = Client(args.target,args.port)
