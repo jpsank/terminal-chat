@@ -1,9 +1,9 @@
-import os
 import argparse
 import socket
 import select
 import sys
 import threading
+import re
 
 
 def retrieveIP():
@@ -16,7 +16,9 @@ class Server:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-        self.clients = []
+        self.clients = {}
+
+        self.aliases = {}
 
         self.host = socket.gethostname()
         self.port = port
@@ -24,15 +26,46 @@ class Server:
         self.s.bind((self.host, self.port))
         self.ip = retrieveIP()
 
+        self.help = {"/help, /?": "display this help message",
+                     "/pm [ip] [message]": "send a message only to certain ip",
+                     "/file [ip] [filepath]": "send a file (coming soon)",
+                     "/alias [ip] [alias]": "set a temporary alias for an IP address"}
+
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
         while True:
             try:
                 message = conn.recv(2048).decode()
+                sender = addr[0]
+                if sender in self.aliases:
+                    sender = self.aliases[sender]
                 if message:
-                    message_to_send = "{}>{}".format(addr[0],message)
-                    print(message_to_send)
-                    self.broadcast(message_to_send, conn)
+                    if message.startswith("/"):
+                        if re.match("^/help$",message):
+                            message_to_send = "\n".join(['{:30} {}'.format(k,self.help[k]) for k in self.help])
+                            print(sender,"requested help")
+                            self.broadcast(message_to_send,conn,only=[addr[0]])
+                        elif re.match("^/pm (.+?) (.+)",message):
+                            match = re.match("^/pm (.+?) (.+)",message)
+                            to = match.group(1)
+                            message = match.group(2)
+                            message_to_send = "{}->You>{}".format(sender,message)
+                            print("{}->{}>{}".format(sender,to,message))
+                            self.broadcast(message_to_send,conn,only=[to])
+                        elif re.match("^/file (.+?) (.+)", message):
+                            match = re.match("^/file (.+?) (.+)", message)
+                            to = match.group(1)
+                            fp = match.group(2)
+                            self.sendfile(open(fp,"rb"), to)
+                        elif re.match("^/alias (.+?) (.+)", message):
+                            match = re.match("^/alias (.+?) (.+)", message)
+                            ip = match.group(1)
+                            alias = match.group(2)
+                            self.aliases[ip] = alias
+                    else:
+                        message_to_send = "{}>{}".format(sender,message)
+                        print(message_to_send)
+                        self.broadcast(message_to_send, conn)
 
                 else:
                     self.remove(conn)
@@ -40,24 +73,33 @@ class Server:
             except:
                 continue
 
-    def broadcast(self, message, connection):
+    def sendfile(self,file,to):
         for c in self.clients:
-            if c != connection:
+            if self.clients[c] == to:
+                c.sendfile(file)
+
+    def broadcast(self, message, connection, only=()):
+        for c in self.clients:
+            if only:
+                condition = self.clients[c] in only
+            else:
+                condition = c != connection
+            if condition:
                 try:
                     c.send(message.encode())
                 except:
                     c.close()
-                    self.remove(c)
+                    del self.clients[c]
 
     def remove(self,connection):
         if connection in self.clients:
-            self.clients.remove(connection)
+            del self.clients[connection]
 
     def start(self):
         self.s.listen(100)
         while True:
             conn, addr = self.s.accept()
-            self.clients.append(conn)
+            self.clients[conn] = addr[0]
             print(addr[0] + " connected.")
             threading.Thread(target=self.clientthread, args=(conn, addr)).start()
 
@@ -93,13 +135,11 @@ class Client:
                         break
                 else:
                     message = sys.stdin.readline()
-                    if message == "/?":
-                        sys.stdout.write("help")
-                    else:
-                        self.s.send(message.encode())
+                    self.s.send(message.encode())
+                    if not message.startswith("/"):
                         sys.stdout.write("You>")
                         sys.stdout.write(message)
-                    sys.stdout.flush()
+                        sys.stdout.flush()
         self.s.close()
 
 
