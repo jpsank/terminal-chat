@@ -6,6 +6,11 @@ import sys
 import threading
 
 
+def retrieveIP():
+    ip = socket.gethostbyname(socket.getfqdn())
+    return ip
+
+
 class Server:
     def __init__(self,port=55555):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -17,7 +22,7 @@ class Server:
         self.port = port
 
         self.s.bind((self.host, self.port))
-        self.ip = self.s.getsockname()[0]
+        self.ip = retrieveIP()
 
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
@@ -69,7 +74,7 @@ class Client:
         self.port = port
 
         self.s.connect((self.target, self.port))
-        self.ip = self.s.getsockname()[0]
+        self.ip = retrieveIP()
 
         closed = False
         while not closed:
@@ -88,9 +93,12 @@ class Client:
                         break
                 else:
                     message = sys.stdin.readline()
-                    self.s.send(message.encode())
-                    sys.stdout.write("You>")
-                    sys.stdout.write(message)
+                    if message == "/?":
+                        sys.stdout.write("help")
+                    else:
+                        self.s.send(message.encode())
+                        sys.stdout.write("You>")
+                        sys.stdout.write(message)
                     sys.stdout.flush()
         self.s.close()
 
