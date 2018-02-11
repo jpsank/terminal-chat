@@ -52,7 +52,7 @@ If I wanted to make it so I would show up as "George" on any messages sent by me
 So that servers can distribute files to their clients, a client can use the file command to grab files from the server, like so:
 ```
 /file cat.jpg
-<Downloading......done>
+Downloading... 3.1MiB bytes (done)
 ```
 On the client side, it will be saved as "file" in the program directory (extension must be added)
 

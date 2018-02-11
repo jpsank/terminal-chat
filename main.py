@@ -12,6 +12,14 @@ def retrieveIP():
     return ip
 
 
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','Ki','Mi','Gi','Ti','Pi','Ei','Zi']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Yi', suffix)
+
+
 class Server:
     def __init__(self,port=55555):
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -152,11 +160,11 @@ class Client:
                             print(message.decode())
                         except UnicodeDecodeError:
                             file = open("file","wb")
+                            print("Downloading... 0 bytes",end="\r")
                             idx = 0
-                            print("<Downloading", end="")
                             while message:
                                 if idx % 2000 == 0:
-                                    print(".", end="")
+                                    print("Downloading... {} bytes             ".format(sizeof_fmt(2048*idx)), end="\r")
                                 file.write(message)
                                 idx += 1
                                 ready = select.select([socks], [], [], 1)
@@ -165,7 +173,7 @@ class Client:
                                 else:
                                     break
                             file.close()
-                            print("done>")
+                            print("Downloading... {} bytes (done)      ".format(sizeof_fmt(2048*idx)))
                     else:
                         print("Connection closed.")
                         closed = True
