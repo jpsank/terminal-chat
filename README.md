@@ -35,19 +35,28 @@ Clients send messages to the server, which will then broadcast the messages to a
 ### Chat Commands
 Type "/help" in the chat to get help for chat commands
 ```
-/help, /?                      display this help message
-/pm [ip] [message]             send a message only to certain ip
-/alias [ip] [alias]            set a temporary alias for an IP address
+ - /help, /?                      display this help message
+ - /pm [ip] [message]             send a message only to certain ip
+ - /file [filepath]               download a file from the server
+ - /alias [alias]                 set your name on this server (others will see this instead of your IP)
+ - /members                       return all members of this chat
 ```
 For example, if I wanted to send a message "hello, this message will only broadcast to you" to only the IP address 192.168.0.2, I would type:
 ```
 /pm 192.168.0.2 hello, this message will only broadcast to you
 ```
-If I wanted to make it so 192.168.0.2 would show up as "George" on any messages sent by him, I would type:
+If I wanted to make it so I would show up as "George" on any messages sent by me, I would type:
 ```
-/alias 192.168.0.2 George
+/alias George
 ```
+So that servers can distribute files to their clients, a client can use the file command to grab files from the server, like so:
+```
+/file cat.jpg
+<Downloading......done>
+```
+On the client side, it will be saved as "file" in the program directory (extension must be added)
 
 ## Future Possibilities
-- [ ] Add the ability to send images over chat
+- [x] Add the ability to send images over chat
+- [ ] List all online LAN chat servers for easier connection (See who's online)
 - [ ] Improve UI

@@ -4,6 +4,7 @@ import select
 import sys
 import threading
 import re
+import os
 
 
 def retrieveIP():
@@ -28,8 +29,9 @@ class Server:
 
         self.help = {"/help, /?": "display this help message",
                      "/pm [ip] [message]": "send a message only to certain ip",
-                     "/file [ip] [filepath]": "send a file (coming soon)",
-                     "/alias [ip] [alias]": "set a temporary alias for an IP address"}
+                     "/file [filepath]": "download a file from the server",
+                     "/alias [alias]": "set your name on this server (others will see this instead of your IP)",
+                     "/members": "return all members of this chat"}
 
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
@@ -41,8 +43,8 @@ class Server:
                     sender = self.aliases[sender]
                 if message:
                     if message.startswith("/"):
-                        if re.match("^/help$",message):
-                            message_to_send = "\n".join(['{:30} {}'.format(k,self.help[k]) for k in self.help])
+                        if re.match("^/(help|\?)$",message):
+                            message_to_send = "\n".join([' - {:30} {}'.format(k,self.help[k]) for k in self.help])
                             print(sender,"requested help")
                             self.broadcast(message_to_send,conn,only=[addr[0]])
                         elif re.match("^/pm (.+?) (.+)",message):
@@ -52,16 +54,28 @@ class Server:
                             message_to_send = "{}->You>{}".format(sender,message)
                             print("{}->{}>{}".format(sender,to,message))
                             self.broadcast(message_to_send,conn,only=[to])
-                        elif re.match("^/file (.+?) (.+)", message):
-                            match = re.match("^/file (.+?) (.+)", message)
-                            to = match.group(1)
-                            fp = match.group(2)
-                            self.sendfile(open(fp,"rb"), to)
-                        elif re.match("^/alias (.+?) (.+)", message):
-                            match = re.match("^/alias (.+?) (.+)", message)
-                            ip = match.group(1)
-                            alias = match.group(2)
-                            self.aliases[ip] = alias
+                        elif re.match("^/file (.+)", message):
+                            match = re.match("^/file (.+)", message)
+                            fp = match.group(1)
+                            if os.path.isfile(fp):
+                                file = open(fp,"rb")
+                                self.sendfile(file, conn)
+                                file.close()
+                                print(sender, "retrieved a file '{}'".format(fp))
+                            else:
+                                print(sender, "tried to retrieve a nonexistent file '{}'".format(fp))
+                                self.broadcast("File '{}' not found".format(fp), conn, only=[addr[0]])
+                        elif re.match("^/alias (\S+)", message):
+                            match = re.match("^/alias (\S+)", message)
+                            alias = match.group(1)
+                            print("{} set his/her alias to '{}'".format(sender, alias))
+                            self.aliases[addr[0]] = alias
+                        elif re.match("^/members$", message):
+                            message_to_send = "\n".join([" - "+("{} ({})".format(a,self.aliases[a]) if a in self.aliases else a) for a in self.clients.values()])
+                            print(sender, "requested member list")
+                            self.broadcast(message_to_send, conn, only=[addr[0]])
+                        else:
+                            self.broadcast("Unknown or incorrect usage of command. Type '/help' for the list of commands", conn, only=[addr[0]])
                     else:
                         message_to_send = "{}>{}".format(sender,message)
                         print(message_to_send)
@@ -73,12 +87,14 @@ class Server:
             except:
                 continue
 
-    def sendfile(self,file,to):
-        for c in self.clients:
-            if self.clients[c] == to:
-                c.sendfile(file)
+    def sendfile(self, file, connection):
+        read = file.read(2048)
+        while read:
+            connection.send(read)
+            read = file.read(2048)
 
     def broadcast(self, message, connection, only=()):
+        remove = []
         for c in self.clients:
             if only:
                 condition = self.clients[c] in only
@@ -87,9 +103,13 @@ class Server:
             if condition:
                 try:
                     c.send(message.encode())
+                except AttributeError:
+                    c.send(message)
                 except:
                     c.close()
-                    del self.clients[c]
+                    remove.append(c)
+        for c in remove:
+            del self.clients[c]
 
     def remove(self,connection):
         if connection in self.clients:
@@ -128,7 +148,24 @@ class Client:
                 if socks == self.s:
                     message = socks.recv(2048)
                     if message:
-                        print(message.decode())
+                        try:
+                            print(message.decode())
+                        except UnicodeDecodeError:
+                            file = open("file","wb")
+                            idx = 0
+                            print("<Downloading", end="")
+                            while message:
+                                if idx % 2000 == 0:
+                                    print(".", end="")
+                                file.write(message)
+                                idx += 1
+                                ready = select.select([socks], [], [], 1)
+                                if ready[0]:
+                                    message = socks.recv(2048)
+                                else:
+                                    break
+                            file.close()
+                            print("done>")
                     else:
                         print("Connection closed.")
                         closed = True
