@@ -164,7 +164,7 @@ class Client:
                             idx = 0
                             while message:
                                 if idx % 2000 == 0:
-                                    print("Downloading... {} bytes             ".format(sizeof_fmt(2048*idx)), end="\r")
+                                    print("Downloading... {}             ".format(sizeof_fmt(2048*idx)), end="\r")
                                 file.write(message)
                                 idx += 1
                                 ready = select.select([socks], [], [], 1)
@@ -173,7 +173,7 @@ class Client:
                                 else:
                                     break
                             file.close()
-                            print("Downloading... {} bytes (done)      ".format(sizeof_fmt(2048*idx)))
+                            print("Downloading... {} (done)      ".format(sizeof_fmt(2048*idx)))
                     else:
                         print("Connection closed.")
                         closed = True
