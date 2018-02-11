@@ -61,11 +61,21 @@ class Server:
                             self.broadcast(message_to_send,conn,only=[addr[0]])
                         elif re.match("^/pm (.+?) (.+)",message):
                             match = re.match("^/pm (.+?) (.+)",message)
-                            to = match.group(1)
-                            message = match.group(2)
-                            message_to_send = "{}->You>{}".format(sender,message)
-                            print("{}->{}>{}".format(sender,to,message))
-                            self.broadcast(message_to_send,conn,only=[to])
+                            toip = match.group(1)
+                            if toip in self.aliases.values():
+                                toip = {v: k for k,v in self.aliases.items()}[toip]
+                            if toip in self.aliases:
+                                toname = self.aliases[toip]
+                            else:
+                                toname = toip
+                            if toip in self.clients.values():
+                                message = match.group(2)
+                                message_to_send = "{}->You>{}".format(sender,message)
+                                print("{}->{}>{}".format(sender,toname,message))
+                                self.broadcast(message_to_send,conn,only=[toip])
+                            else:
+                                print("{} tried to send a pm to '{}'".format(sender,toname))
+                                self.broadcast("PM failed", conn, only=[addr[0]])
                         elif re.match("^/file (.+)", message):
                             match = re.match("^/file (.+)", message)
                             fp = match.group(1)
@@ -87,6 +97,7 @@ class Server:
                             print(sender, "requested member list")
                             self.broadcast(message_to_send, conn, only=[addr[0]])
                         else:
+                            print("{} tried to execute unknown command '{}'".format(sender,message))
                             self.broadcast("Unknown or incorrect usage of command. Type '/help' for the list of commands", conn, only=[addr[0]])
                     else:
                         message_to_send = "{}>{}".format(sender,message)
