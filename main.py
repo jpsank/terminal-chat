@@ -224,7 +224,7 @@ def list_netips():
     try:
         subprocess.check_output(["ping","-i","0.1","-c","2",broadcast_ip])
     except subprocess.CalledProcessError:
-        subprocess.check_output(["ping", "-b", "-i", "0.1", "-c", "2", broadcast_ip])
+        subprocess.check_output(["ping", "-b", "-i", "1", "-c", "2", broadcast_ip])
 
     arps = subprocess.check_output(["arp", "-a"]).decode()
     ips = [re.match(selector, a) for a in arps.split('\n')]
