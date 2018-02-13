@@ -213,7 +213,7 @@ class Client:
 
 
 def get_bcast_ip():
-    ifconfig = os.popen("ifconfig | grep -Eo '(Bcast:)?(([0-9]+\.){3}255)'").read()
+    ifconfig = os.popen("ifconfig | grep -Eo '(Bcast:)?(([0-9]+\.){3}255)' | grep -Eo '(([0-9]+\.){3}255)'").read()
     bcast = ifconfig.split("\n")[0]
     return bcast
 
