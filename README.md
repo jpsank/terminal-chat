@@ -3,7 +3,7 @@ Chat with your friends on LAN through the terminal!
 
 ## Usage
 ```
-usage: main.py [-h] [-t TARGET] [-p PORT] [-l [LISTEN]]
+usage: main.py [-h] [-t TARGET] [-p PORT] [-l [LISTEN]] [-a [ARP]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -11,6 +11,8 @@ optional arguments:
   -p PORT               port to listen (default 55555)
   -l [LISTEN], --listen [LISTEN]
                         listen to [host]:[port] for incoming connections
+  -a [ARP], --arp [ARP]
+                        list all IP addresses connected to the network (see who's online)
 ```
 ### Server
 If you want to host a chat server and listen for connections, type

@@ -5,6 +5,7 @@ import sys
 import threading
 import re
 import os
+import subprocess
 
 
 def retrieveIP():
@@ -49,7 +50,7 @@ class Server:
         conn.send(b'Welcome to this chatroom!')
         while True:
             try:
-                message = conn.recv(2048).decode()
+                message = conn.recv(2048).decode()[:-1]
                 sender = addr[0]
                 if sender in self.aliases:
                     sender = self.aliases[sender]
@@ -97,7 +98,7 @@ class Server:
                             print(sender, "requested member list")
                             self.broadcast(message_to_send, conn, only=[addr[0]])
                         else:
-                            print("{} tried to execute unknown command '{}'".format(sender,message))
+                            print("{} tried to execute unknown or incorrect usage of command '{}'".format(sender,message))
                             self.broadcast("Unknown or incorrect usage of command. Type '/help' for the list of commands", conn, only=[addr[0]])
                     else:
                         message_to_send = "{}>{}".format(sender,message)
@@ -203,14 +204,37 @@ class Client:
         self.s.close()
 
 
+def list_netips():
+    re_ip = re.compile(r"^\? \(((\d+\.){3}\d+)\)")
+    arps = subprocess.check_output(["arp", "-a"]).decode().split('\n')
+    broadcast_ip = None
+    for a in arps:
+        if "at ff:ff:ff:ff:ff:ff on" in a:
+            broadcast_ip = re.match(re_ip, a).group(1)
+            break
+    subprocess.check_output(["ping","-i","0.1","-c","2",broadcast_ip])
+
+    arps = subprocess.check_output(["arp", "-a"]).decode()
+    ips = [re.match(re_ip, a) for a in arps.split('\n')]
+    ips = [i.group(1) for i in ips if i]
+    ip_start = '.'.join(broadcast_ip.split('.')[:-1])
+    ips = [i+" (broadcast)" if i == broadcast_ip else i for i in ips if i.startswith(ip_start)]
+    return ips
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', help='target IP to connect to', type=str, dest="target")
     parser.add_argument('-p', help='port to listen (default 55555)', type=int, default=55555, dest="port")
     parser.add_argument('-l', '--listen', nargs='?', help='listen to [host]:[port] for incoming connections',
                         default=False, const=True)
+    parser.add_argument("-a", "--arp", nargs='?', help="list all IP addresses connected to your network (see who's online)",
+                        dest="arp", default=False, const=True)
     args = parser.parse_args()
 
+    if args.arp:
+        ips = list_netips()
+        print('\n'.join(ips))
     if args.listen:
         server = Server(args.port)
         print("Chat initiated with IP {} on port {}".format(server.ip,server.port))
