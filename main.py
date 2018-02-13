@@ -8,10 +8,18 @@ import os
 import subprocess
 
 
+re_ip = "(([0-9]+\.){3}[0-9]+)"
+
+
 def retrieveIP():
     try:
-        ifconfig = os.popen("ifconfig | grep -Eo 'inet (addr:)?([0-9]*\.){3}[0-9]*' | grep -Eo '([0-9]*\.){3}[0-9]*' | grep -v '127.0.0.1'").read()
-        ip = ifconfig.split("\n")[0]
+        cmd = "ifconfig | grep -Eo 'inet (addr:)?{0}' | grep -Eo '{0}' | grep -v '127.0.0.1'".format(re_ip)
+        ifconfig = os.popen(cmd).read()
+        ips = ifconfig.split("\n")
+        bcast = get_bcast_ip()
+        ip_start = '.'.join(bcast.split('.')[:-1])
+        ips = [i for i in ips if i.startswith(ip_start) and i != bcast]
+        ip = ips[0]
     except:
         ip = (([ip for ip in socket.gethostbyname_ex(socket.gethostname())[2] if not ip.startswith("127.")] or [[(s.connect(("8.8.8.8", 53)), s.getsockname()[0], s.close()) for s in [socket.socket(socket.AF_INET, socket.SOCK_DGRAM)]][0][1]]) + ["no IP found"])[0]
     return ip
@@ -204,21 +212,22 @@ class Client:
         self.s.close()
 
 
+def get_bcast_ip():
+    ifconfig = os.popen("ifconfig | grep -Eo '(Bcast:)?(([0-9]+\.){3}255)'").read()
+    bcast = ifconfig.split("\n")[0]
+    return bcast
+
+
 def list_netips():
-    re_ip = re.compile(r"^\? \(((\d+\.){3}\d+)\)")
-    arps = subprocess.check_output(["arp", "-a"]).decode().split('\n')
-    broadcast_ip = None
-    for a in arps:
-        if "at ff:ff:ff:ff:ff:ff on" in a:
-            broadcast_ip = re.match(re_ip, a).group(1)
-            break
+    selector = re.compile("^\? \({}\)".format(re_ip))
+    broadcast_ip = get_bcast_ip()
     subprocess.check_output(["ping","-i","0.1","-c","2",broadcast_ip])
 
     arps = subprocess.check_output(["arp", "-a"]).decode()
-    ips = [re.match(re_ip, a) for a in arps.split('\n')]
+    ips = [re.match(selector, a) for a in arps.split('\n')]
     ips = [i.group(1) for i in ips if i]
     ip_start = '.'.join(broadcast_ip.split('.')[:-1])
-    ips = [i+" (broadcast)" if i == broadcast_ip else i for i in ips if i.startswith(ip_start)]
+    ips = [i+" (bcast)" if i == broadcast_ip else i for i in ips if i.startswith(ip_start)]
     return ips
 
 
@@ -239,7 +248,7 @@ if __name__ == '__main__':
         server = Server(args.port)
         print("Chat initiated with IP {} on port {}".format(server.ip,server.port))
         server.start()
-    else:
+    elif args.target:
         client = Client(args.target,args.port)
 
 
