@@ -223,8 +223,9 @@ def list_netips():
     broadcast_ip = get_bcast_ip()
     try:
         subprocess.check_output(["ping","-i","0.1","-c","2",broadcast_ip])
-    except subprocess.CalledProcessError:
-        subprocess.check_output(["ping", "-b", "-i", "1", "-c", "2", broadcast_ip])
+    except subprocess.CalledProcessError as e:
+        print("Failed. {}".format(str(e)))
+        return False
 
     arps = subprocess.check_output(["arp", "-a"]).decode()
     ips = [re.match(selector, a) for a in arps.split('\n')]
@@ -246,7 +247,9 @@ if __name__ == '__main__':
 
     if args.arp:
         ips = list_netips()
-        print('\n'.join(ips))
+        if ips:
+            print('\n'.join(ips))
+
     if args.listen:
         server = Server(args.port)
         print("Chat initiated with IP {} on port {}".format(server.ip,server.port))
