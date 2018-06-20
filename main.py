@@ -45,7 +45,7 @@ class Server:
         self.host = socket.gethostname()
         self.port = port
 
-        self.s.bind((self.host, self.port))
+        self.s.bind(("", self.port))
         self.ip = retrieveIP()
 
         self.help = {"/help, /?": "display this help message",
