@@ -222,10 +222,13 @@ def list_netips():
     selector = re.compile("^\? \({}\)".format(re_ip))
     broadcast_ip = get_bcast_ip()
     try:
-        subprocess.check_output(["ping","-i","0.1","-c","2",broadcast_ip])
+        subprocess.check_output(["ping", "-i","0.1", "-c","2", broadcast_ip])
     except subprocess.CalledProcessError as e:
-        print("Failed. {}".format(str(e)))
-        return False
+        try:
+            subprocess.check_output(["ping", "-i","1", "-c","2", "-b", broadcast_ip])
+        except subprocess.CalledProcessError as e:
+            print("Failed. {}".format(str(e)))
+            return False
 
     arps = subprocess.check_output(["arp", "-a"]).decode()
     ips = [re.match(selector, a) for a in arps.split('\n')]
@@ -241,7 +244,8 @@ if __name__ == '__main__':
     parser.add_argument('-p', help='port to listen (default 55555)', type=int, default=55555, dest="port")
     parser.add_argument('-l', '--listen', nargs='?', help='listen to [host]:[port] for incoming connections',
                         default=False, const=True)
-    parser.add_argument("-a", "--arp", nargs='?', help="list all IP addresses connected to your network (see who's online)",
+    parser.add_argument("-a", "--arp", nargs='?',
+                        help="list all IP addresses connected to your network (see who's online)",
                         dest="arp", default=False, const=True)
     args = parser.parse_args()
 
