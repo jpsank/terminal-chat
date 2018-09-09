@@ -48,11 +48,11 @@ class Server:
         self.s.bind(("", self.port))
         self.ip = retrieveIP()
 
-        self.help = {"/help, /?": "display this help message",
+        self.help = {"/help, /?":          "display this help message",
                      "/pm [ip] [message]": "send a message only to certain ip",
-                     "/file [filepath]": "download a file from the server",
-                     "/alias [alias]": "set your name on this server (others will see this instead of your IP)",
-                     "/members": "return all members of this chat"}
+                     "/file [filepath]":   "download a file from the server",
+                     "/alias [alias]":     "set your name on this server (others will see this instead of your IP)",
+                     "/members":           "return all members of this chat"}
 
     def clientthread(self, conn, addr):
         conn.send(b'Welcome to this chatroom!')
@@ -114,6 +114,10 @@ class Server:
                         self.broadcast(message_to_send, conn)
 
                 else:
+                    if conn in self.clients:
+                        message_to_send = sender + " disconnected."
+                        print(message_to_send)
+                        self.broadcast(message_to_send, conn)
                     self.remove(conn)
 
             except:
@@ -168,7 +172,7 @@ class Client:
         self.port = port
 
         self.s.connect((self.target, self.port))
-        self.ip = retrieveIP()
+        # self.ip = retrieveIP()
 
         closed = False
         while not closed:
@@ -256,7 +260,7 @@ if __name__ == '__main__':
 
     if args.listen:
         server = Server(args.port)
-        print("Chat initiated with IP {} on port {}".format(server.ip,server.port))
+        print("Chat initiated with IP {} on port {}".format(server.ip, server.port))
         server.start()
     elif args.target:
         client = Client(args.target,args.port)
